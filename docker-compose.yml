@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  proxmox-monitor:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/proxmox_monitor
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - proxmox-network
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=proxmox_monitor
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - proxmox-network
+
+volumes:
+  postgres_data:
+
+networks:
+  proxmox-network:
+    driver: bridge
